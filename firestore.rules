@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /registrationRequests/{requestId} {
+      allow create: if signedIn()
+        && requestId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'requestedRole',
+          'fullName',
+          'phone',
+          'licenseNumber',
+          'status',
+          'submittedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid',
+          'requestedRole',
+          'fullName',
+          'phone',
+          'licenseNumber',
+          'status',
+          'submittedAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.requestedRole == 'guide'
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() > 0
+        && request.resource.data.fullName.size() <= 120
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() <= 24
+        && request.resource.data.status == 'pending'
+        && request.resource.data.submittedAt == request.time
+        && request.resource.data.licenseNumber is string
+        && request.resource.data.licenseNumber.size() > 0
+        && request.resource.data.licenseNumber.size() <= 50;
+
+      allow read, update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['role', 'status', 'createdAt'])
+        && request.resource.data.role == 'tourist'
+        && request.resource.data.status == 'active'
+        && request.resource.data.createdAt == request.time;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
