@@ -5,6 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta name="theme-color" content="#f6f5ef">
 	<title>دليلي عُمان | اكتشف عُمان مع أهلها</title>
+	<meta name="referrer" content="strict-origin-when-cross-origin">
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -182,7 +183,7 @@
 		@media (max-width: 390px) {
 			.brand-name { font-size: 15px; }
 			.brand-mark { width: 31px; height: 31px; }
-			.account-actions .text-button { display: none; }
+			.account-actions .text-button, .account-actions .outline-button { padding: 8px 7px; font-size: 10px; }
 			h1 { font-size: 35px; }
 			.search-field { padding: 4px 8px; }
 			.search-field select { font-size: 10px; }
@@ -191,9 +192,37 @@
 		@media (prefers-reduced-motion: reduce) {
 			*, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 		}
+		.modal-backdrop { align-items: flex-start; overflow-y: auto; overscroll-behavior: contain; }
+		.modal { margin: auto; }
+		.js-warning { margin: 0; padding: 10px 6.1%; background: #fff1d6; color: #6b4300; font-size: 13px; text-align: center; border-bottom: 1px solid #f0d9a8; }
+		#map { max-width: 560px; margin: 0 auto; }
+		#map svg { width: 100%; height: auto; display: block; direction: ltr; border: 1px solid var(--line); border-radius: 8px; }
+		.sea { fill: #e3ebed; } .land { fill: #ecdfc2; stroke: #a58a5a; stroke-width: 1.5; stroke-linejoin: round; }
+		.nb { font-size: 11px; fill: #8a9690; }
+		.mk { cursor: pointer; } .mk circle { fill: var(--green); stroke: #fffefa; stroke-width: 2.5; } .mk text { font-size: 13px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: #fffefa; stroke-width: 3px; }
+		.mk.on circle, .mk:focus circle { fill: var(--coral); } .mk:focus { outline: none; }
+		.map-info { margin-top: 10px; padding: 14px 16px; background: var(--white); border: 1px solid #ebeae2; border-radius: 6px; font-size: 13px; }
+		.map-info p { margin: 6px 0; color: var(--muted); font-size: 12px; }
+		.g-av { width: 86px; height: 115px; border-radius: 4px; background: var(--green); color: var(--lime); display: grid; place-items: center; font-size: 34px; font-weight: 700; }
+		.guide-tags { flex-wrap: wrap; }
+		.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; align-items: start; }
+		.panel { background: var(--white); border: 1px solid #ebeae2; border-radius: 6px; padding: 18px; margin-bottom: 15px; }
+		.panel h3 { margin: 0 0 10px; font-size: 16px; }
+		.panel label { display: block; font-size: 11px; font-weight: 600; margin: 10px 0 4px; }
+		.panel input:not([type=checkbox]), .panel select, .panel textarea { width: 100%; padding: 9px 10px; border: 1px solid #dedfd6; border-radius: 4px; background: white; font: inherit; font-size: 13px; color: var(--ink); }
+		.zones { border: 1px solid #dedfd6; border-radius: 4px; margin: 10px 0 0; }
+		.panel label.chk { display: inline-flex; gap: 4px; margin: 3px 8px 3px 0; font-weight: 400; }
+		.li { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
+		.li.sub { padding-inline-start: 14px; font-size: 12px; }
+		.li-end { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: end; }
+		.mut { color: var(--muted); font-size: 11px; }
+		.badge { background: #e6edda; color: var(--green-dark); padding: 2px 9px; border-radius: 99px; font-size: 10px; white-space: nowrap; }
+		.sm { padding: 6px 10px; font-size: 11px; }
+		@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
 	</style>
 </head>
 <body>
+	<p id="js-warning" class="js-warning" role="alert">لا تعمل الأزرار لأن ملفات الموقع غير محمّلة. ضع app.js وfeatures.js وfirebase-config.js بجوار index.html، وافتح الموقع من الرابط المنشور أو من خادم محلي.</p>
 	<header class="shell topbar">
 		<a class="brand" href="#home" aria-label="دليلي عُمان، الرئيسية">
 			<span class="brand-mark">د</span>
@@ -308,6 +337,18 @@
 			</div>
 		</section>
 
+		<section class="section" id="map-section" aria-labelledby="map-title">
+			<div class="section-head"><div><div class="section-kicker">خريطة عُمان</div><h2 id="map-title">اكتشف المحافظات على الخريطة</h2><p class="section-desc">اضغط على أي محافظة لعرض أماكنها وعدد مرشديها.</p></div></div>
+			<div id="map" role="region" aria-label="خريطة محافظات عُمان الإحدى عشرة"></div>
+		</section>
+
+		<section class="section" id="guides" aria-labelledby="guides-title">
+			<div class="section-head"><div><div class="section-kicker">الأسعار والتقييمات</div><h2 id="guides-title">المرشدون السياحيون</h2><p class="section-desc" id="guides-note"></p></div></div>
+			<div class="guide-list" id="guide-list"></div>
+		</section>
+
+		<section class="section" id="dashboard" hidden aria-live="polite"></section>
+
 		<section class="section guides-section" id="experiences" aria-labelledby="experiences-title">
 			<div class="section-head">
 				<div><div class="section-kicker">رحلات موثوقة تبدأ بحساب موثّق</div><h2 id="experiences-title">هل أنت مرشد سياحي؟</h2><p class="section-desc">أنشئ حساب مرشد، وأرسل بيانات الترخيص للمراجعة قبل إتاحة ملفك للحجوزات.</p></div>
@@ -320,13 +361,13 @@
 		<div class="trust-inner">
 			<div class="trust-item"><b>✓</b><span>التحقق من الترخيص قبل نشر المرشد</span></div>
 			<div class="trust-item"><b>⌖</b><span>تغطية المحافظات الإحدى عشرة</span></div>
-			<div class="trust-item"><b>♡</b><span>لا نعرض بيانات تجريبية</span></div>
+			<div class="trust-item"><b>♡</b><span>المرشدون الظاهرون حسابات حقيقية معتمدة</span></div>
 			<div class="trust-item"><b>◎</b><span>بيانات الدخول لا تُحفظ في المتصفح</span></div>
 		</div>
 	</section>
 	<footer><span>© 2026 دليلي عُمان</span><span>صُنع بحب لعُمان وأهلها</span></footer>
 
-	<div class="modal-backdrop open" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+	<div class="modal-backdrop" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
 		<form class="modal auth-modal" id="auth-form">
 			<div class="modal-head"><div><h3 id="auth-title">أهلاً بك في دليلي عُمان</h3><p class="modal-subtitle">سجّل الدخول للمتابعة</p></div><button class="close-button" type="button" id="close-auth" aria-label="استكشاف الوجهات كزائر">×</button></div>
 			<div class="auth-role-switch" aria-label="نوع الحساب">
@@ -347,6 +388,7 @@
 			<input id="auth-license" name="license" type="text" autocomplete="off" maxlength="50" placeholder="يُراجع قبل تفعيل ملف المرشد" data-guide-only hidden>
 			<label for="auth-password">كلمة المرور</label>
 			<input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="٨ أحرف على الأقل">
+			<button class="link-button" type="button" id="forgot-password">نسيت كلمة المرور؟</button>
 			<button class="solid-button modal-submit" id="auth-submit" type="submit">تسجيل الدخول</button>
 			<p class="auth-error" id="auth-error" role="status" aria-live="polite"></p>
 			<p class="auth-note">يلزم إعداد Firebase وقواعد أمان قاعدة البيانات لتفعيل الحسابات. لا تُخزَّن كلمات المرور محلياً، ولا ترفع وثائق الهوية عبر هذه الصفحة.</p>
@@ -356,225 +398,7 @@
 	<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 	<script src="./firebase-config.js"></script>
-	<script>
-		const destinationFilter = document.querySelector('#destination-filter');
-		const regionCards = [...document.querySelectorAll('[data-region]')];
-		const authModal = document.querySelector('#auth-modal');
-		const authForm = document.querySelector('#auth-form');
-		const authError = document.querySelector('#auth-error');
-		const guestActions = document.querySelector('#guest-actions');
-		const signedInActions = document.querySelector('#signed-in-actions');
-		let selectedRole = 'tourist';
-		let selectedMode = 'signin';
-		let firebaseServices;
-
-		function applyRegionFilter(region) {
-			destinationFilter.value = region;
-			regionCards.forEach((card) => { card.hidden = region !== 'all' && card.dataset.region !== region; });
-			document.querySelector('#destinations').scrollIntoView({ behavior: 'smooth', block: 'start' });
-		}
-
-		document.querySelector('#search-form').addEventListener('submit', (event) => {
-			event.preventDefault();
-			applyRegionFilter(destinationFilter.value);
-		});
-		regionCards.forEach((card) => {
-			const choose = () => applyRegionFilter(card.dataset.region);
-			card.addEventListener('click', choose);
-			card.addEventListener('keydown', (event) => {
-				if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); }
-			});
-		});
-		document.querySelector('#show-all').addEventListener('click', () => applyRegionFilter('all'));
-
-		function updateAuthForm() {
-			const isSignup = selectedMode === 'signup';
-			document.querySelectorAll('[data-signup-only]').forEach((field) => {
-				field.hidden = !isSignup;
-				field.required = isSignup && field.id === 'auth-name';
-			});
-			document.querySelectorAll('[data-guide-only]').forEach((field) => {
-				field.hidden = !(isSignup && selectedRole === 'guide');
-				field.required = isSignup && selectedRole === 'guide';
-			});
-			document.querySelector('#auth-password').autocomplete = isSignup ? 'new-password' : 'current-password';
-			document.querySelector('#auth-submit').textContent = isSignup ? 'إنشاء الحساب' : 'تسجيل الدخول';
-			document.querySelectorAll('[data-role]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.role === selectedRole)));
-			document.querySelectorAll('[data-mode]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.mode === selectedMode)));
-			authError.textContent = '';
-		}
-
-		function openAuth(role = 'tourist') {
-			selectedRole = role;
-			selectedMode = 'signin';
-			updateAuthForm();
-			authModal.classList.add('open');
-			document.querySelector('#auth-email').focus();
-		}
-
-		function showSignedInAccount(user, profile) {
-			const roleName = profile.role === 'guide' ? 'مرشد سياحي' : 'سائح';
-			document.querySelector('#account-label').textContent = `${user.displayName || user.email} · ${roleName}`;
-			guestActions.hidden = true;
-			signedInActions.hidden = false;
-			authModal.classList.remove('open');
-		}
-
-		function showSignedOutAccount() {
-			signedInActions.hidden = true;
-			guestActions.hidden = false;
-		}
-
-		document.querySelectorAll('[data-open-auth]').forEach((button) => button.addEventListener('click', () => openAuth(button.dataset.openAuth)));
-		document.querySelectorAll('[data-role]').forEach((button) => button.addEventListener('click', () => {
-			selectedRole = button.dataset.role;
-			updateAuthForm();
-		}));
-		document.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => {
-			selectedMode = button.dataset.mode;
-			updateAuthForm();
-		}));
-		document.querySelector('#close-auth').addEventListener('click', () => authModal.classList.remove('open'));
-		document.querySelector('#browse-public').addEventListener('click', () => authModal.classList.remove('open'));
-		authModal.addEventListener('click', (event) => { if (event.target === authModal) authModal.classList.remove('open'); });
-		document.addEventListener('keydown', (event) => { if (event.key === 'Escape') authModal.classList.remove('open'); });
-		document.querySelector('#signout-button').addEventListener('click', async () => {
-			try {
-				const { auth, authSdk } = await getFirebaseServices();
-				await authSdk.signOut(auth);
-				showSignedOutAccount();
-			} catch (error) {
-				openAuth();
-				authError.textContent = error.message || 'تعذر تسجيل الخروج.';
-			}
-		});
-
-		async function getFirebaseServices() {
-			if (firebaseServices) return firebaseServices;
-			const config = window.DALEEL_FIREBASE_CONFIG;
-			if (!config || !config.apiKey || !config.projectId || !config.authDomain) {
-				throw new Error('يلزم إعداد مشروع Firebase أولاً. لم يتم حفظ أي بيانات.');
-			}
-			const version = '11.10.0';
-			const [appSdk, authSdk, firestoreSdk] = await Promise.all([
-				import(`https://www.gstatic.com/firebasejs/${version}/firebase-app.js`),
-				import(`https://www.gstatic.com/firebasejs/${version}/firebase-auth.js`),
-				import(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore.js`)
-			]);
-			const app = appSdk.initializeApp(config);
-			firebaseServices = {
-				auth: authSdk.getAuth(app),
-				authSdk,
-				db: firestoreSdk.getFirestore(app),
-				firestoreSdk
-			};
-			return firebaseServices;
-		}
-
-		async function validateSession(user, auth, authSdk, db, firestoreSdk) {
-			if (!user) {
-				showSignedOutAccount();
-				return;
-			}
-			try {
-				const profile = await firestoreSdk.getDoc(firestoreSdk.doc(db, 'users', user.uid));
-				const data = profile.exists() ? profile.data() : null;
-				const validRole = data && ['tourist', 'guide'].includes(data.role);
-				const approvedGuide = data?.role !== 'guide' || data?.guideStatus === 'approved';
-				if (!validRole || !approvedGuide) {
-					await authSdk.signOut(auth);
-					showSignedOutAccount();
-					openAuth(data?.role === 'guide' ? 'guide' : 'tourist');
-					authError.textContent = 'الحساب غير معتمد أو لا يملك ملفاً صالحاً.';
-					return;
-				}
-				showSignedInAccount(user, data);
-			} catch {
-				await authSdk.signOut(auth);
-				showSignedOutAccount();
-			}
-		}
-
-		if (window.DALEEL_FIREBASE_CONFIG?.apiKey) {
-			getFirebaseServices().then(({ auth, authSdk, db, firestoreSdk }) => {
-				authSdk.onAuthStateChanged(auth, (user) => validateSession(user, auth, authSdk, db, firestoreSdk));
-			}).catch(() => {});
-		}
-
-		authForm.addEventListener('submit', async (event) => {
-			event.preventDefault();
-			if (!authForm.reportValidity()) return;
-			const submitButton = document.querySelector('#auth-submit');
-			const email = document.querySelector('#auth-email').value.trim();
-			const password = document.querySelector('#auth-password').value;
-			const name = document.querySelector('#auth-name').value.trim();
-			const phone = document.querySelector('#auth-phone').value.trim();
-			const licenseNumber = document.querySelector('#auth-license').value.trim();
-			submitButton.disabled = true;
-			authError.textContent = '';
-			let activeAuth;
-			let activeAuthSdk;
-			let createdAccount = false;
-			try {
-				const { auth, authSdk, db, firestoreSdk } = await getFirebaseServices();
-				activeAuth = auth;
-				activeAuthSdk = authSdk;
-				if (selectedMode === 'signup') {
-					const credential = await authSdk.createUserWithEmailAndPassword(auth, email, password);
-					createdAccount = true;
-					await authSdk.updateProfile(credential.user, { displayName: name });
-					if (selectedRole === 'guide') {
-						await firestoreSdk.setDoc(firestoreSdk.doc(db, 'registrationRequests', credential.user.uid), {
-							uid: credential.user.uid,
-							requestedRole: selectedRole,
-							fullName: name,
-							phone,
-							licenseNumber,
-							status: 'pending',
-							submittedAt: firestoreSdk.serverTimestamp()
-						});
-					} else {
-						await firestoreSdk.setDoc(firestoreSdk.doc(db, 'users', credential.user.uid), {
-							role: 'tourist',
-							status: 'active',
-							createdAt: firestoreSdk.serverTimestamp()
-						});
-					}
-					await authSdk.signOut(auth);
-					createdAccount = false;
-					authError.textContent = selectedRole === 'guide'
-						? 'تم استلام طلب المرشد. لا يُفعّل الحساب قبل مراجعة الترخيص من الإدارة.'
-						: 'تم إنشاء حساب السائح. سجّل الدخول للمتابعة.';
-				} else {
-					const credential = await authSdk.signInWithEmailAndPassword(auth, email, password);
-					const profile = await firestoreSdk.getDoc(firestoreSdk.doc(db, 'users', credential.user.uid));
-					if (!profile.exists() || profile.data().role !== selectedRole) {
-						await authSdk.signOut(auth);
-						throw new Error('تعذر التحقق من نوع الحساب. تأكد من الاختيار أو تواصل مع الإدارة.');
-					}
-					if (selectedRole === 'guide' && profile.data().guideStatus !== 'approved') {
-						await authSdk.signOut(auth);
-						throw new Error('حساب المرشد بانتظار اعتماد الترخيص من الإدارة.');
-					}
-					showSignedInAccount(credential.user, profile.data());
-				}
-			} catch (error) {
-				if (createdAccount && activeAuth?.currentUser && activeAuthSdk) {
-					await activeAuthSdk.signOut(activeAuth).catch(() => {});
-				}
-				const messages = {
-					'auth/email-already-in-use': 'هذا البريد مسجل مسبقاً. اختر تسجيل الدخول.',
-					'auth/invalid-credential': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
-					'auth/weak-password': 'اختر كلمة مرور أقوى وفق إعدادات Firebase.',
-					'auth/too-many-requests': 'محاولات كثيرة. انتظر قليلاً ثم حاول مجدداً.',
-					'auth/network-request-failed': 'تعذر الاتصال. تحقق من الإنترنت وحاول مجدداً.'
-				};
-				authError.textContent = messages[error.code] || error.message || 'تعذر إكمال العملية. حاول مرة أخرى.';
-			} finally {
-				document.querySelector('#auth-password').value = '';
-				submitButton.disabled = false;
-			}
-		});
-	</script>
+	<script src="./app.js"></script>
+	<script src="./features.js"></script>
 </body>
 </html>

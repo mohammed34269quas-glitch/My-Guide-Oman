@@ -2,31 +2,46 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function signedIn() {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function hasRole(role) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active'
+        && (role != 'guide'
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.guideStatus == 'approved');
+    }
+
+    function regions() {
+      return ['muscat', 'dhofar', 'musandam', 'buraimi', 'dakhiliyah', 'dhahirah',
+              'north-batinah', 'south-batinah', 'north-sharqiyah', 'south-sharqiyah', 'wusta'];
+    }
+
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // مديرو المنصة: تُنشأ الوثيقة يدوياً من لوحة Firebase فقط. يستطيع المستخدم معرفة هل هو مدير.
+    match /admins/{adminId} {
+      allow get: if signedIn() && request.auth.uid == adminId;
+      allow list, write: if false;
+    }
+
+    // طلبات تسجيل المرشدين: ينشئها صاحبها، وتراجعها الإدارة فقط.
     match /registrationRequests/{requestId} {
       allow create: if signedIn()
         && requestId == request.auth.uid
-        && request.resource.data.keys().hasOnly([
-          'uid',
-          'requestedRole',
-          'fullName',
-          'phone',
-          'licenseNumber',
-          'status',
-          'submittedAt'
-        ])
-        && request.resource.data.keys().hasAll([
-          'uid',
-          'requestedRole',
-          'fullName',
-          'phone',
-          'licenseNumber',
-          'status',
-          'submittedAt'
-        ])
+        && request.resource.data.keys().hasOnly(['uid', 'requestedRole', 'fullName', 'phone', 'licenseNumber', 'status', 'submittedAt'])
+        && request.resource.data.keys().hasAll(['uid', 'requestedRole', 'fullName', 'phone', 'licenseNumber', 'status', 'submittedAt'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.requestedRole == 'guide'
         && request.resource.data.fullName is string
@@ -39,19 +54,157 @@ service cloud.firestore {
         && request.resource.data.licenseNumber is string
         && request.resource.data.licenseNumber.size() > 0
         && request.resource.data.licenseNumber.size() <= 50;
-
-      allow read, update, delete: if false;
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && onlyChanged(['status'])
+        && request.resource.data.status in ['approved', 'rejected'];
+      allow delete: if false;
     }
 
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
+      allow get: if signedIn() && request.auth.uid == userId;
       allow create: if signedIn()
         && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(['role', 'status', 'createdAt'])
         && request.resource.data.role == 'tourist'
         && request.resource.data.status == 'active'
         && request.resource.data.createdAt == request.time;
-      allow write: if false;
+      // اعتماد المرشد من الإدارة فقط.
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['role', 'status', 'guideStatus', 'createdAt'])
+        && request.resource.data.role == 'guide'
+        && request.resource.data.status == 'active'
+        && request.resource.data.guideStatus == 'approved';
+      allow list, delete: if false;
+    }
+
+    // الملف العام للمرشد. التقييمات تُحسب من مجموعة reviews ولا يعدلها المرشد.
+    match /guides/{guideId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'bio', 'langs', 'zones', 'price', 'specialty', 'active', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 120;
+      allow update: if signedIn()
+        && request.auth.uid == guideId
+        && hasRole('guide')
+        && onlyChanged(['bio', 'langs', 'zones', 'price', 'specialty'])
+        && request.resource.data.bio is string && request.resource.data.bio.size() <= 600
+        && request.resource.data.specialty is string && request.resource.data.specialty.size() <= 80
+        && request.resource.data.langs is list && request.resource.data.langs.size() <= 8
+        && request.resource.data.zones is list && request.resource.data.zones.size() <= 11
+        && request.resource.data.zones.hasOnly(regions())
+        && request.resource.data.price is number
+        && request.resource.data.price >= 1 && request.resource.data.price <= 2000;
+      allow delete: if false;
+    }
+
+    // الرحلات: طلب من سائح إلى مرشد محدد (req)، أو رحلة ينظمها مرشد (offer).
+    match /trips/{tripId} {
+      allow read: if signedIn() && (
+        resource.data.ownerId == request.auth.uid
+        || resource.data.guideId == request.auth.uid
+        || resource.data.kind == 'offer'
+        || isAdmin());
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['kind', 'ownerId', 'ownerName', 'guideId', 'guideName', 'region', 'place', 'date', 'seats', 'notes', 'quote', 'status', 'members', 'createdAt'])
+        && request.resource.data.keys().hasAll(['kind', 'ownerId', 'ownerName', 'guideId', 'guideName', 'region', 'place', 'date', 'seats', 'notes', 'quote', 'status', 'members', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerName is string
+        && request.resource.data.ownerName.size() > 0 && request.resource.data.ownerName.size() <= 120
+        && request.resource.data.guideId is string
+        && request.resource.data.guideName is string && request.resource.data.guideName.size() <= 120
+        && request.resource.data.region in regions()
+        && request.resource.data.place is string
+        && request.resource.data.place.size() > 0 && request.resource.data.place.size() <= 80
+        && request.resource.data.date is string && request.resource.data.date.size() == 10
+        && request.resource.data.seats is int
+        && request.resource.data.seats >= 1 && request.resource.data.seats <= 50
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 300
+        && request.resource.data.quote is number
+        && request.resource.data.quote >= 0 && request.resource.data.quote <= 5000
+        && request.resource.data.members == []
+        && request.resource.data.createdAt == request.time
+        && (
+          (request.resource.data.kind == 'req'
+            && hasRole('tourist')
+            && request.resource.data.status == 'pending'
+            && exists(/databases/$(database)/documents/guides/$(request.resource.data.guideId)))
+          || (request.resource.data.kind == 'offer'
+            && hasRole('guide')
+            && request.resource.data.status == 'open'
+            && request.resource.data.guideId == request.auth.uid)
+        );
+
+      allow update: if signedIn() && (
+        // المرشد يرد على طلب موجّه إليه
+        (resource.data.kind == 'req'
+          && resource.data.guideId == request.auth.uid
+          && hasRole('guide')
+          && onlyChanged(['status'])
+          && ((request.resource.data.status in ['confirmed', 'declined'] && resource.data.status == 'pending')
+            || (request.resource.data.status == 'completed' && resource.data.status == 'confirmed')))
+        // السائح يلغي طلبه
+        || (resource.data.kind == 'req'
+          && resource.data.ownerId == request.auth.uid
+          && onlyChanged(['status'])
+          && request.resource.data.status == 'cancelled'
+          && resource.data.status in ['pending', 'confirmed'])
+        // المرشد يدير رحلته المنشورة
+        || (resource.data.kind == 'offer'
+          && resource.data.ownerId == request.auth.uid
+          && hasRole('guide')
+          && ((onlyChanged(['status']) && request.resource.data.status in ['completed', 'cancelled'] && resource.data.status == 'open')
+            || (onlyChanged(['members']) && request.resource.data.members.size() <= resource.data.seats)))
+      );
+      allow delete: if false;
+    }
+
+    // طلبات الانضمام إلى رحلات المرشدين. المرشد وحده يختار السياح.
+    match /joins/{joinId} {
+      allow read: if signedIn() && (
+        resource.data.touristId == request.auth.uid
+        || resource.data.guideId == request.auth.uid
+        || isAdmin());
+      allow create: if hasRole('tourist')
+        && request.resource.data.keys().hasOnly(['tripId', 'guideId', 'touristId', 'touristName', 'status', 'createdAt'])
+        && request.resource.data.keys().hasAll(['tripId', 'guideId', 'touristId', 'touristName', 'status', 'createdAt'])
+        && request.resource.data.touristId == request.auth.uid
+        && joinId == request.resource.data.tripId + '_' + request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.touristName is string
+        && request.resource.data.touristName.size() > 0 && request.resource.data.touristName.size() <= 120
+        && request.resource.data.createdAt == request.time
+        && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.kind == 'offer'
+        && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.status == 'open'
+        && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.guideId == request.resource.data.guideId;
+      allow update: if hasRole('guide')
+        && resource.data.guideId == request.auth.uid
+        && onlyChanged(['status'])
+        && request.resource.data.status in ['accepted', 'rejected'];
+      allow delete: if signedIn()
+        && resource.data.touristId == request.auth.uid
+        && resource.data.status == 'pending';
+    }
+
+    // تقييم واحد لكل سائح عن كل رحلة مكتملة شارك فيها.
+    match /reviews/{reviewId} {
+      allow read: if signedIn();
+      allow create: if hasRole('tourist')
+        && request.resource.data.keys().hasOnly(['tripId', 'guideId', 'touristId', 'rating', 'text', 'createdAt'])
+        && request.resource.data.keys().hasAll(['tripId', 'guideId', 'touristId', 'rating', 'text', 'createdAt'])
+        && reviewId == request.resource.data.tripId + '_' + request.auth.uid
+        && request.resource.data.touristId == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && request.resource.data.text is string && request.resource.data.text.size() <= 300
+        && request.resource.data.createdAt == request.time
+        && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.status == 'completed'
+        && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.guideId == request.resource.data.guideId
+        && (get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.ownerId == request.auth.uid
+          || request.auth.uid in get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.members);
+      allow update, delete: if false;
     }
 
     match /{document=**} {
